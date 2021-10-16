@@ -12,7 +12,8 @@ class MatlabGymMmapWrapper(gym.core.Env):
 
         os.makedirs(self.mmaped_file_dir, exist_ok=True)
         self.eng = matlab.engine.start_matlab()
-        self.eng.addpath(env_path)
+        all_paths = self.eng.genpath(env_path)
+        self.eng.addpath(all_paths)
         eval(f"self.eng.{launch_script}(nargout=0)")
 
         self.eng.eval("env.getObservationInfo()")
