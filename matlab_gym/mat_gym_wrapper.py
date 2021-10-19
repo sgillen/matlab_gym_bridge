@@ -44,7 +44,7 @@ class MatlabGymWrapper(gym.core.Env):
         else:
             raise NotImplementedError(f"Currently do not support actions of type {act_dtype_str}")
 
-        act_dim = np.array(self.eng.eval("actInfo.Dimension"), dtype=int).squeeze()
+        act_dim = np.array(self.eng.eval("actInfo.Dimension"), dtype=int).squeeze()[0]
         act_lower = np.array(self.eng.eval("actInfo.LowerLimit")).item()
         act_upper = np.array(self.eng.eval("actInfo.UpperLimit")).item()
         self.action_space = gym.spaces.Box(low=act_lower, high=act_upper, shape=act_dim, dtype=act_dtype)

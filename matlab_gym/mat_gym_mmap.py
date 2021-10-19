@@ -8,7 +8,10 @@ import matlab.engine
 class MatlabGymMmapWrapper(gym.core.Env):
     mmaped_file_dir = "./shared_files"
     
-    def __init__(self, env_path, launch_script):
+    def __init__(self, env_path, launch_script, train_dtype=np.float64):
+
+
+        self.train_dtype=train_dtype
 
         os.makedirs(self.mmaped_file_dir, exist_ok=True)
         self.eng = matlab.engine.start_matlab()
@@ -29,11 +32,11 @@ class MatlabGymMmapWrapper(gym.core.Env):
         else:
             raise NotImplementedError(f"Currently do not support observations of type {obs_dtype_str}")
 
-        obs_dim = np.array(self.eng.eval("obsInfo.Dimension"), dtype=int).squeeze()
+        obs_dim = (np.array(self.eng.eval("obsInfo.Dimension"), dtype=int).squeeze()[0],)
         print(obs_dim)
         obs_lower = np.array(self.eng.eval("obsInfo.LowerLimit")).item()
         obs_upper = np.array(self.eng.eval("obsInfo.UpperLimit")).item()
-        self.observation_space = gym.spaces.Box(low=obs_lower, high=obs_upper, shape=obs_dim, dtype=obs_dtype)
+        self.observation_space = gym.spaces.Box(low=obs_lower, high=obs_upper, shape=obs_dim, dtype=np.float32)
 
         self.eng.workspace["actInfo"] = self.eng.eval("env.getActionInfo()")
         act_class = self.eng.eval('class(actInfo)')
@@ -42,16 +45,15 @@ class MatlabGymMmapWrapper(gym.core.Env):
 
         act_dtype_str = self.eng.eval("actInfo.DataType")
         if act_dtype_str == "double":
-            act_dtype = np.float64
+            self.act_dtype = np.float64
             self.matlab_dtype = matlab.double
         else:
             raise NotImplementedError(f"Currently do not support actions of type {act_dtype_str}")
 
-        act_dim = np.array(self.eng.eval("actInfo.Dimension"), dtype=int).squeeze()
-        print(act_dim)
+        act_dim = (np.array(self.eng.eval("actInfo.Dimension"), dtype=int).squeeze()[0],)
         act_lower = np.array(self.eng.eval("actInfo.LowerLimit")).reshape(act_dim)
         act_upper = np.array(self.eng.eval("actInfo.UpperLimit")).reshape(act_dim)
-        self.action_space = gym.spaces.Box(low=act_lower, high=act_upper, shape=act_dim, dtype=act_dtype)
+        self.action_space = gym.spaces.Box(low=act_lower, high=act_upper, shape=act_dim, dtype=np.float32)
 
 
         self.obs_size = obs_dim[0]
@@ -93,17 +95,19 @@ class MatlabGymMmapWrapper(gym.core.Env):
     
     def step(self, act):
 
+        act = act.astype(self.act_dtype)
+
         self.send_mmap[1] = 0 # 0 -> don't reset
         self.send_mmap[2:] = act
 
         self._signal_to_mat()
         self._wait_for_mat()
         
-        obs = np.array(self.recv_mmap[1:self.obs_size+1])
-        rew = np.array(self.recv_mmap[self.obs_size+1])
+        obs = np.array(self.recv_mmap[1:self.obs_size+1], dtype=self.train_dtype)
+        rew = np.array(self.recv_mmap[self.obs_size+1], dtype=self.train_dtype)
         done = np.array(self.recv_mmap[self.obs_size+2])
 
-        return obs.squeeze(), rew, done, None
+        return obs.squeeze(), rew, done, {}
 
 
     def reset(self):
@@ -111,7 +115,7 @@ class MatlabGymMmapWrapper(gym.core.Env):
         self._signal_to_mat()
         self._wait_for_mat()
         
-        obs = np.array(self.recv_mmap[1:self.obs_size+1])
+        obs = np.array(self.recv_mmap[1:self.obs_size+1], dtype=self.train_dtype)
         return obs.squeeze()
 
         
