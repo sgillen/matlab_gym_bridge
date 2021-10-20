@@ -86,6 +86,7 @@ class MatlabGymMmapWrapper(gym.core.Env):
     def _wait_for_mat(self):
 
         pointer, read_only_flag = self.recv_mmap.__array_interface__['data']
+        print(pointer)
         fastwait.fastwait(pointer)
         
         # while(self.recv_mmap[0] != self.recv_byte):
