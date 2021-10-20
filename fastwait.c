@@ -4,11 +4,20 @@
 static PyObject *
 method_fastwait(PyObject *self, PyObject *args)
 {
-    void* buff;
-    if (!PyArg_ParseTuple(args, "p", &buff))
+  static double recv_byte = 0;
+  
+  double* buff;
+  if (!PyArg_ParseTuple(args, "p", &buff))
         return NULL;
+
+  while(buff[0] != recv_byte){}
+  recv_byte += 1;
+  recv_byte = (double)((int)recv_byte % 2);
     
-    return args;
+   
+
+	      
+  return args;
 }
 
 

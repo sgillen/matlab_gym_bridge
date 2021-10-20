@@ -5,10 +5,13 @@ import os
 import matlab
 import matlab.engine
 
+import fastwait
+
+
 class MatlabGymMmapWrapper(gym.core.Env):
     mmaped_file_dir = "./shared_files"
     
-    def __init__(self, env_path, launch_script, train_dtype=np.float64):
+    def __init__(self, env_path, env_fn, train_dtype=np.float64):
 
 
         self.train_dtype=train_dtype
@@ -17,9 +20,8 @@ class MatlabGymMmapWrapper(gym.core.Env):
         self.eng = matlab.engine.start_matlab()
         all_paths = self.eng.genpath(env_path)
         self.eng.addpath(all_paths)
-        eval(f"self.eng.{launch_script}(nargout=0)")
-
-        self.eng.eval("env.getObservationInfo()")
+        
+        self.eng.workspace["env"] = eval(f"self.eng.{env_fn}(nargout=1)")
         self.eng.workspace["obsInfo"] = self.eng.eval("env.getObservationInfo()")
 
         obs_class = self.eng.eval('class(obsInfo)')
@@ -84,16 +86,15 @@ class MatlabGymMmapWrapper(gym.core.Env):
     def _wait_for_mat(self):
 
         pointer, read_only_flag = self.recv_mmap.__array_interface__['data']
-        import fastwait
-        fastwait.fastwait(pointer, self.recv_byte)
+        fastwait.fastwait(pointer)
         
-        while(self.recv_mmap[0] != self.recv_byte):
-            pass
-        self.recv_byte = (self.recv_byte + 1) % 2
+        # while(self.recv_mmap[0] != self.recv_byte):
+        #     pass
+        # self.recv_byte = (self.recv_byte + 1) % 2
 
     def _signal_to_mat(self):
         self.send_mmap[0] = self.send_byte
-        self.send_byte = (self.send_byte + 1) % 2;
+        self.send_byte = (self.send_byte + 1) % 2
 
 
 
