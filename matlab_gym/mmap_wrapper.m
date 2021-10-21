@@ -39,7 +39,7 @@ classdef mmap_wrapper < handle
                 end
                 obj.recv_byte = mod(obj.recv_byte+1, 2);
 
-
+            
                 if obj.recv_mmap.Data(2) == 1
                     Observation = obj.env.reset();
                     obj.send_mmap.Data(2:obj.obs_size+1) = Observation;
@@ -53,6 +53,7 @@ classdef mmap_wrapper < handle
                 end
 
                 obj.send_mmap.Data(1) = obj.send_byte;
+                obj.send_byte;
                 obj.send_byte = mod(obj.send_byte+1,2);
             end
                     
